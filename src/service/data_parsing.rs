@@ -5,34 +5,27 @@ use tokio::io::{self, BufReader, AsyncBufReadExt};
 use std::path::Path;
 
 
-#[post("/process_data")]
+#[post("/process_codes")]
 pub async fn parsing_data(
     pool: web::Data<MySqlPool>,
 ) -> HttpResponse {
-    let path1 = Path::new("./src/files/icd10cm_order.txt");
-    let path2 = Path::new("./src/files/Alternate-Terms-2023.txt");
+    let path = Path::new("./src/files/icd10cm_order.txt");
 
     // Open files asynchronously
-    let file1 = File::open(&path1).await;
-    let file2 = File::open(&path2).await;
+    let file = File::open(&path).await;
 
-    match (file1, file2) {
-        (Ok(file1), Ok(file2)) => {
-            let reader1 = BufReader::new(file1);
-            let reader2 = BufReader::new(file2);
+    match file {
+        Ok(file) => {
+            let reader = BufReader::new(file);
 
             // Process files in parallel
-            let (result1, result2) = tokio::join!(
-                process_file_codes(reader1, pool.clone()),
-                process_file_alterterm(reader2, pool.clone()),
+            let result = tokio::join!(
+                process_file_codes(reader, pool.clone()),
             );
 
             // Check results
-            if let Err(e) = result1 {
-                return HttpResponse::InternalServerError().body(format!("Error processing file 1: {:?}", e));
-            }
-            if let Err(e) = result2 {
-                return HttpResponse::InternalServerError().body(format!("Error processing file 2: {:?}", e));
+            if let (Err(e),) = result {
+                return HttpResponse::InternalServerError().body(format!("Error processing codes: {:?}", e));
             }
 
             HttpResponse::Ok().finish()
@@ -70,6 +63,35 @@ async fn process_file_codes(
     Ok(())
 }
 
+#[post("/process_alterterm")]
+pub async fn parsing_alterterm_code(
+    pool: web::Data<MySqlPool>,
+) -> HttpResponse {
+
+    let path = Path::new("./src/files/Alternate-Terms-2023.txt");
+
+    // Open files asynchronously
+    let file = File::open(&path).await;
+
+    match file {
+        Ok(file) => {
+            let reader = BufReader::new(file);
+
+            // Process files in parallel
+            let result = tokio::join!(
+                process_file_alterterm(reader, pool.clone()),
+            );
+
+            // Check results
+            if let (Err(e),) = result { // Note the comma after `Err(e)`
+                return HttpResponse::InternalServerError().body(format!("Error processing alterterm: {:?}", e));
+            }
+
+            HttpResponse::Ok().finish()
+        }
+        _ => HttpResponse::InternalServerError().body("Failed to open files"),
+    }
+}
 async fn process_file_alterterm(
     mut reader: BufReader<File>,
     pool: web::Data<MySqlPool>,

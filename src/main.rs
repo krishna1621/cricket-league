@@ -14,7 +14,7 @@ use service::team_services::get_all_teams;
 use service::team_services::update_team_details;
 use service::jwt_service::login;
 use service::data_parsing::parsing_data;
-
+use service::data_parsing::parsing_alterterm_code;
 
 
 #[actix_web::main]
@@ -42,6 +42,7 @@ async fn main() -> std::io::Result<()> {
                 .service(add_booking_details)
                 .service(add_team_members)
                 .service(parsing_data)
+                .service(parsing_alterterm_code)
                // .wrap(middleware::Logger::default())
               //  .route("/login", web::post().to(login))
             //  .service(web::scope("/add_team_members").guard(jwt_middleware())
